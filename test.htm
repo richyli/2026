@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>買房 vs 租房長期財務比較工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', 'Microsoft JhengHei', sans-serif; }
+        .input-card { @apply bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-4; }
+        .label-text { @apply text-xs font-bold text-slate-400 uppercase tracking-wider mb-1; }
+        .number-input { @apply w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-indigo-900 flex items-center gap-2">
+                <i data-lucide="calculator" class="w-8 h-8 text-indigo-600"></i>
+                買房 vs 租房 決策分析工具
+            </h1>
+            <p class="text-slate-500 mt-1">綜合考慮利率、租金、房價漲幅與機會成本的 30 年模型</p>
+        </div>
+        <div class="flex bg-white rounded-xl shadow-sm p-1 border border-slate-200">
+            <button id="tab-summary" class="px-6 py-2 rounded-lg transition-all bg-indigo-600 text-white shadow-md">概覽分析</button>
+            <button id="tab-details" class="px-6 py-2 rounded-lg transition-all text-slate-600 hover:bg-slate-100">年度明細</button>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Sidebar: Inputs -->
+        <aside class="lg:col-span-1 space-y-4">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-semibold mb-6 flex items-center gap-2 border-b pb-2">
+                    <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                    參數設定
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="label-text">房價 (TWD)</label>
+                        <input type="number" id="propPrice" class="number-input" value="15000000" step="100000">
+                    </div>
+                    <div>
+                        <label class="label-text">頭期款比例 (%)</label>
+                        <input type="number" id="downPayPct" class="number-input" value="20">
+                    </div>
+                    <div>
+                        <label class="label-text">貸款年限 (年)</label>
+                        <input type="number" id="loanTerm" class="number-input" value="30">
+                    </div>
+                    <div>
+                        <label class="label-text">貸款利率 (%)</label>
+                        <input type="number" id="interestRate" class="number-input" value="2.1" step="0.1">
+                    </div>
+                    
+                    <hr class="border-slate-100">
+                    
+                    <div>
+                        <label class="label-text">月租金 (TWD)</label>
+                        <input type="number" id="monthlyRent" class="number-input" value="35000" step="1000">
+                    </div>
+                    <div>
+                        <label class="label-text">租金年增率 (%)</label>
+                        <input type="number" id="rentInc" class="number-input" value="2" step="0.1">
+                    </div>
+                    
+                    <hr class="border-slate-100">
+                    
+                    <div>
+                        <label class="label-text">房價年漲幅 (%)</label>
+                        <input type="number" id="apprecRate" class="number-input" value="2" step="0.1">
+                    </div>
+                    <div>
+                        <label class="label-text">投資報酬率 (%)</label>
+                        <input type="number" id="investReturn" class="number-input" value="5" step="0.1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 text-sm text-indigo-700">
+                <h3 class="font-semibold flex items-center gap-2 mb-2">
+                    <i data-lucide="info" class="w-4 h-4"></i> 核心邏輯
+                </h3>
+                本工具對比「買房者的房產淨值」與「租房者的投資累積」。租房者假設將頭期款投入市場獲利。
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="lg:col-span-3 space-y-6">
+            <!-- Summary Cards -->
+            <div id="section-summary" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <p class="text-slate-500 text-sm font-medium mb-1">每月房貸支出</p>
+                        <p id="card-mortgage" class="text-2xl font-bold text-slate-800">$0</p>
+                        <div class="mt-2 text-xs text-slate-400">本息平均攤還</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <p class="text-slate-500 text-sm font-medium mb-1">資產交叉年限</p>
+                        <p id="card-breakeven" class="text-2xl font-bold text-indigo-600">--</p>
+                        <div class="mt-2 text-xs text-slate-400">買房淨值超越租房</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <p class="text-slate-500 text-sm font-medium mb-1">30 年後預估房價</p>
+                        <p id="card-final-value" class="text-2xl font-bold text-emerald-600">$0</p>
+                        <div class="mt-2 text-xs text-slate-400">資產複利成長</div>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-xl font-bold text-slate-800 mb-6">累積淨資產對比趨勢</h3>
+                    <div class="h-[400px]">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Details Table -->
+            <div id="section-details" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 font-medium">
+                                <th class="px-6 py-4">年份</th>
+                                <th class="px-6 py-4">房屋預估價值</th>
+                                <th class="px-6 py-4">剩餘貸款</th>
+                                <th class="px-6 py-4">累積租金支出</th>
+                                <th class="px-6 py-4">買房淨資產</th>
+                                <th class="px-6 py-4">租房淨資產</th>
+                            </tr>
+                        </thead>
+                        <tbody id="details-body" class="divide-y divide-slate-100">
+                            <!-- JS injected rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+    // 初始化 Lucide 圖示
+    lucide.createIcons();
+
+    // 全域變數
+    let myChart = null;
+    const ctx = document.getElementById('mainChart').getContext('2d');
+
+    // 格式化貨幣
+    const formatCurrency = (val) => {
+        return new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(val);
+    };
+
+    // 計算核心邏輯
+    function calculate() {
+        const pPrice = parseFloat(document.getElementById('propPrice').value);
+        const dPct = parseFloat(document.getElementById('downPayPct').value);
+        const lTerm = parseFloat(document.getElementById('loanTerm').value);
+        const iRate = parseFloat(document.getElementById('interestRate').value);
+        const mRent = parseFloat(document.getElementById('monthlyRent').value);
+        const rInc = parseFloat(document.getElementById('rentInc').value);
+        const aRate = parseFloat(document.getElementById('apprecRate').value);
+        const invRet = parseFloat(document.getElementById('investReturn').value);
+
+        const downPayment = pPrice * (dPct / 100);
+        const loanAmt = pPrice - downPayment;
+        const mRate = (iRate / 100) / 12;
+        const totalMonths = lTerm * 12;
+
+        // 每月房貸 (本息平均)
+        const monthlyMortgage = mRate === 0 
+            ? loanAmt / totalMonths 
+            : (loanAmt * mRate * Math.pow(1 + mRate, totalMonths)) / (Math.pow(1 + mRate, totalMonths) - 1);
+
+        document.getElementById('card-mortgage').innerText = formatCurrency(monthlyMortgage);
+
+        let dataPoints = [];
+        let cumRent = 0;
+        let currentRent = mRent;
+        let currentPropValue = pPrice;
+        let remainingLoan = loanAmt;
+        let investBalance = downPayment; // 租房者的投資基金
+        let breakEvenYear = null;
+
+        for (let year = 1; year <= 30; year++) {
+            // 租房：累積租金支出 + 投資增長
+            for (let m = 1; m <= 12; m++) { cumRent += currentRent; }
+            currentRent *= (1 + rInc / 100);
+            investBalance *= (1 + invRet / 100);
+
+            // 買房：房價增值 + 償還貸款
+            currentPropValue *= (1 + aRate / 100);
+            for (let m = 1; m <= 12; m++) {
+                let interest = remainingLoan * mRate;
+                let principal = monthlyMortgage - interest;
+                remainingLoan = Math.max(0, remainingLoan - principal);
+            }
+
+            const buyerNet = currentPropValue - remainingLoan;
+            const renterNet = investBalance - cumRent;
+
+            if (breakEvenYear === null && buyerNet > renterNet) {
+                breakEvenYear = year;
+            }
+
+            dataPoints.push({
+                year,
+                buyerNet,
+                renterNet,
+                propValue: currentPropValue,
+                remLoan: remainingLoan,
+                cumRent
+            });
+        }
+
+        document.getElementById('card-breakeven').innerText = breakEvenYear ? `${breakEvenYear} 年` : '超過 30 年';
+        document.getElementById('card-final-value').innerText = formatCurrency(dataPoints[29].propValue);
+
+        updateChart(dataPoints);
+        updateTable(dataPoints);
+    }
+
+    function updateChart(data) {
+        const labels = data.map(d => `第 ${d.year} 年`);
+        const buyData = data.map(d => d.buyerNet);
+        const rentData = data.map(d => d.renterNet);
+
+        if (myChart) {
+            myChart.destroy();
+        }
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '買房累積淨資產',
+                        data: buyData,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3
+                    },
+                    {
+                        label: '租房累積淨資產',
+                        data: rentData,
+                        borderColor: '#fb923c',
+                        backgroundColor: 'rgba(251, 146, 60, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: value => (value / 1000000) + 'M'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateTable(data) {
+        const tbody = document.getElementById('details-body');
+        tbody.innerHTML = '';
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50 transition-colors";
+            tr.innerHTML = `
+                <td class="px-6 py-4 font-semibold text-slate-500">第 ${row.year} 年</td>
+                <td class="px-6 py-4">${formatCurrency(row.propValue)}</td>
+                <td class="px-6 py-4 text-red-500">${formatCurrency(row.remLoan)}</td>
+                <td class="px-6 py-4 text-orange-600">${formatCurrency(row.cumRent)}</td>
+                <td class="px-6 py-4 font-medium">${formatCurrency(row.buyerNet)}</td>
+                <td class="px-6 py-4 font-medium">${formatCurrency(row.renterNet)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Tab 切換邏輯
+    document.getElementById('tab-summary').addEventListener('click', () => {
+        document.getElementById('section-summary').classList.remove('hidden');
+        document.getElementById('section-details').classList.add('hidden');
+        document.getElementById('tab-summary').className = 'px-6 py-2 rounded-lg transition-all bg-indigo-600 text-white shadow-md';
+        document.getElementById('tab-details').className = 'px-6 py-2 rounded-lg transition-all text-slate-600 hover:bg-slate-100';
+    });
+
+    document.getElementById('tab-details').addEventListener('click', () => {
+        document.getElementById('section-summary').classList.add('hidden');
+        document.getElementById('section-details').classList.remove('hidden');
+        document.getElementById('tab-details').className = 'px-6 py-2 rounded-lg transition-all bg-indigo-600 text-white shadow-md';
+        document.getElementById('tab-summary').className = 'px-6 py-2 rounded-lg transition-all text-slate-600 hover:bg-slate-100';
+    });
+
+    // 監聽所有輸入變動
+    document.querySelectorAll('.number-input').forEach(input => {
+        input.addEventListener('input', calculate);
+    });
+
+    // 初始執行
+    calculate();
+</script>
+
+</body>
+</html>
